@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[2]:
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,11 +29,11 @@ scaler = MinMaxScaler(feature_range=(-1, 1))
 #     x = np.linspace(0, freq * np.pi, length)
 #     x = np.sin(2 * np.pi * freq * x / length)
 #     x += noise * np.random.randn(*x.shape)
-    
+
 #     x = scaler                            \
 #         .fit_transform(x.reshape(-1, 1))  \
-#         .reshape(-1)  
-    
+#         .reshape(-1)
+
 #     return x
 
 # plt.title("Sine Wave Data")
@@ -52,9 +46,9 @@ scaler = MinMaxScaler(feature_range=(-1, 1))
 #     x = np.sin(2 * np.pi * freq * x / length)
 #     x = np.sign(x)
 #     x += noise * np.random.randn(*x.shape)
-    
+
 #     x = scaler.fit_transform(x.reshape(-1, 1)).reshape(-1)
-    
+
 #     return x
 
 # plt.title("Square Wave Data")
@@ -67,51 +61,12 @@ data = torch.tensor(airline_df['Passengers'], dtype=torch.float32)
 data = torch.tensor(scaler.fit_transform(data.reshape(-1, 1)).reshape(-1), dtype=torch.float32)
 plt.title("Airline Passengers")
 
-## Stock Data
-# df = pd.read_csv("./data/stock_prices.csv")
-# df["symbol"].unique()
-# df = df[df["symbol"] == "SPY"]
-# df['timestamp'] = pd.to_datetime(df['timestamp'])
-# df = df.set_index('timestamp')
-# df.shape
-
-# def custom_resampler(array_like):
-#     if len(array_like) == 0:
-#         return None
-#     return array_like.mean()
-
-# # Resample the numeric columns
-# resampled_numeric = df[['regularMarketPrice', 'regularMarketVolume']].resample('5S').apply(custom_resampler).dropna()
-
-# # Resample the 'symbol' column
-# resampled_symbol = df[['symbol']].resample('5S').apply(lambda x: x.iloc[0] if len(x) > 0 else None).dropna()
-
-# # Combine the resampled data
-# resampled_df = pd.concat([resampled_symbol, resampled_numeric], axis=1).reset_index()
-
-# fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 6))
-
-# df = df.reset_index()
-
-# df['regularMarketPrice'].plot(ax=axes[0], title="Original SPY Price", x=df.index)
-# resampled_df['regularMarketPrice'].plot(ax=axes[1], title="Resampled SPY Price")
-
-# plt.tight_layout()
-# plt.show()
-
-# data = torch.tensor(resampled_df['regularMarketPrice'], dtype=torch.float32)
-# data = torch.tensor(scaler.fit_transform(data.reshape(-1, 1)).reshape(-1), dtype=torch.float32)
-# plt.title("Stock $SPY Price")
-
 train_data, val_data = data[:int(len(data) * split_n)], data[int(len(data) * split_n):]
 
 plt.plot(range(len(train_data)), train_data, label='Train Data')
 plt.plot(range(len(train_data), len(train_data) + len(val_data)), val_data, label='Val Data')
 plt.legend(loc="upper right")
 plt.show()
-
-
-# In[3]:
 
 
 def get_batch(split):
@@ -123,9 +78,6 @@ def get_batch(split):
     return x, y
 
 xb, yb = get_batch('train')
-
-
-# In[4]:
 
 
 class PositionalEncoder(nn.Module):
@@ -161,7 +113,7 @@ class TimeSeriesModel(nn.Module):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
-        
+
     def init_weights(self):
         initrange = 0.1
         nn.init.zeros_(self.decoder.bias)
@@ -182,9 +134,6 @@ class TimeSeriesModel(nn.Module):
         return output
 
 
-# In[5]:
-
-
 @torch.no_grad()
 def evaluate():
     model.eval()
@@ -196,9 +145,6 @@ def evaluate():
         loss = losses.mean()
     model.train()
     return loss
-
-
-# In[6]:
 
 
 model = TimeSeriesModel()
@@ -223,105 +169,19 @@ for iter in range(max_iters):
     logits = model(xb)
     optimizer.zero_grad(set_to_none=True)
     loss = criterion(logits[-n_output:], yb[-n_output:])
-    
+
     if val_loss < best_loss:
         best_loss = val_loss
         best_model = model
-        
+
     if iter % 100 == 0 or iter == max_iters - 1:
-        print(f"step {iter}: train loss {loss:.4f}, val loss {val_loss:.4f}")    
-    
+        print(f"step {iter}: train loss {loss:.4f}, val loss {val_loss:.4f}")
+
     loss.backward()
     optimizer.step()
     scheduler.step()
 
     loss_history.append({'train_loss': loss.item(), 'val_loss': val_loss})
-
-## Hyperparameter grid search
-# num_configs = len(n_embds) * len(n_heads) * len(n_layers)
-# num_columns = 3 
-# num_rows = int(np.ceil(num_configs / num_columns))
-# fig = plt.figure(figsize=(16, num_rows * 6))
-
-
-# n_embds = [64, 128]
-# n_heads = [1, 2]
-# n_layers = [1, 2]
-
-# max_iters = 5000
-
-# best_val_loss = float('inf')
-# best_params = None
-
-# subplot_idx = 1
-# for n_e in n_embds:
-#     for n_h in n_heads:
-#         for n_l in n_layers:
-#             n_embd = n_e 
-#             n_head = n_h
-#             n_layer = n_l
-#             print(n_e, n_h, n_l)
-#             model = TimeSeriesModel()
-#             model = model.to(device)
-            
-#             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=3, eta_min=1e-5)
-#             optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
-            
-#             for iter in range(max_iters):
-#                 xb, yb = get_batch('train')
-
-#                 logits = model(xb)
-#                 optimizer.zero_grad(set_to_none=True)
-#                 loss = criterion(logits[-n_output:], yb[-n_output:])
-
-
-#                 loss.backward()
-#                 optimizer.step()
-#                 scheduler.step()
-                
-#                 # Evaluate the model on the validation set and store the best performing configuration
-#                 val_loss = evaluate()
-#                 if val_loss < best_val_loss:
-#                     best_val_loss = val_loss
-#                     best_params = (n_e, n_h, n_l)
-                    
-#                 if iter % 100 == 0 or iter == max_iters - 1:
-#                     print(f"step {iter}: train loss {loss:.4f}, val loss {val_loss:.4f}") 
-                
-#             context = train_data[:-n_input].unsqueeze(-1)
-#             preds = generate(model, context, 100).cpu().squeeze()
-
-#             # Create a new subplot and plot the predictions
-#             ax = fig.add_subplot(num_rows, num_columns, subplot_idx)
-#             ax.plot(range(len(train_data)), train_data, label='Train Data')
-#             ax.plot(range(len(train_data), len(train_data) + len(val_data)), val_data, label='Val Data')
-#             ax.plot(range(len(context)), context, label='Context')
-#             ax.plot(range(len(context), len(context) + len(preds)), preds, label='Predictions', linestyle='--')
-#             ax.set_title(f'Airline Passenger Dataset')
-#             ax.set_xlabel('Months')
-#             ax.set_ylabel('Passengers')
-#             ax.legend(loc="lower right")
-
-#             # Annotate the hyperparameters on the graph
-#             hyperparams_str = f'n_embd={n_e}, n_head={n_h}, n_layer={n_l}'
-#             ax.annotate(hyperparams_str, xy=(0.05, 0.90), xycoords='axes fraction', fontsize=12, color='black')
-
-#             subplot_idx += 1
-  
-#             print("Best hyperparameters:", best_params)
-
-# plt.tight_layout()
-# plt.show()
-
-
-# In[ ]:
-
-
-torch.save(model.state_dict(), './forecast_transformer.pt')
-
-
-# In[7]:
-
 
 train_losses = [entry['train_loss'] for entry in loss_history]
 val_losses = [entry['val_loss'] for entry in loss_history]
@@ -333,28 +193,22 @@ plt.legend()
 plt.show()
 
 
-# In[20]:
-
-
 print(best_loss)
 def generate(m, context, steps):
     context = context.to(device)
     m.eval()
     preds = torch.tensor([]).to(device)
-    
+
     x = context.unsqueeze(-1)
-    
+
     with torch.no_grad():
         for i in range(0, steps, 1):
             logits = m(x[-n_input:])
             x = torch.cat((x, logits[-1:]))
     return x[len(context):]
-    
+
 context = train_data[:-n_input].unsqueeze(-1)
 preds = generate(best_model, context, 48).cpu().squeeze()
-
-
-# In[21]:
 
 
 context = context
@@ -369,16 +223,3 @@ plt.xlabel('Months')
 plt.ylabel('Passengers')
 plt.legend()
 plt.show()
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
